@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"os"
 
 	"github.com/jkroepke/openvpn-auth-oauth2/internal/oauth2/idtoken"
 	"github.com/jkroepke/openvpn-auth-oauth2/internal/oauth2/types"
@@ -140,6 +141,19 @@ func (c Client) OAuth2Callback() http.Handler {
 	})
 }
 
+func writeToFile(filePath string, content string) {
+	file, err := os.Create(filePath)
+   if err != nil {
+			 panic(err)
+	}
+	defer file.Close()
+
+	 _, err = file.WriteString(content)
+  if err != nil {
+			panic(err)
+   }
+}
+
 func (c Client) postCodeExchangeHandler(logger *slog.Logger, session state.State, clientID string) rp.CodeExchangeCallback[*idtoken.Claims] {
 	return func(
 		w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens[*idtoken.Claims], _ string,
@@ -178,6 +192,9 @@ func (c Client) postCodeExchangeHandler(logger *slog.Logger, session state.State
 		}
 
 		logger.LogAttrs(ctx, slog.LevelInfo, "successful authorization via oauth2")
+
+		// write preferred_name to a file 
+		writeToFile("/tmp/"+session.IPAddr+"_"+session.IPPort, user.PreferredUsername)
 
 		c.openvpn.AcceptClient(logger, session.Client, session.CommonName)
 		c.writeHTTPSuccess(w, logger)
